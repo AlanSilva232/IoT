@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>MQTT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" type="text/css" media="screen" />
+    <script src="https://unpkg.com/mqtt@4.0.1/dist/mqtt.js"></script>
+  </head>
+
+  <body>
+    <h1>Publicar</h1>
+
+    <div>
+      <button type="button" onclick="panelPublish()">Ligar/Desligar</button>
+    </div>
+    <p id="mqttData">...</p>
+  </body>
+  <script>
+    const clientId = 'mqttjs_' + Math.random().toString(16).substr(2, 8)
+    const host = 'mqtt://broker.emqx.io:1883'
+    const publishTopic = 'sensor/dht11'
+    var ledIsOn = false
+    var msg = 'off'
+    var temperatureData = 0
+    const options = {
+      keepalive: 60,
+      clientId: clientId,
+      protocolId: 'MQTT',
+      protocolVersion: 4,
+      clean: true,
+      reconnectPeriod: 1000,
+      connectTimeout: 30 * 1000,
+      will: {
+        topic: 'WillMsg',
+        payload: 'Connection Closed abnormally..!',
+        qos: 0,
+        retain: false
+      }
+    }
+    console.log('Connecting mqtt client')
+    const client = mqtt.connect(host, options)
+    client.on('error', err => {
+      console.log('Connection error: ', err)
+      client.end()
+    })
+    client.on('reconnect', () => {
+      console.log('Reconnecting...')
+    })
+
+    client.on('message', (topic, message, packet) => {
+      console.log(`Received Message: ${message.toString()} On topic: ${topic}`)
+      temperatureData = message.toString()
+    })
+
+    client.on('connect', function () {
+      console.log('Conectado ao servidor MQTT')
+      client.subscribe('sensor/dht11')
+    })
+
+    function panelPublish() {
+      if (ledIsOn) {
+        msg = 'off'
+        ledIsOn = false
+      } else {
+        msg = 'on'
+        ledIsOn = true
+      }
+      client.publish(publishTopic, msg, { qos: 0, retain: false })
+      console.log(publishTopic + ': ' + msg)
+    }
+    setInterval(updateData, 3000)
+    function updateData() {
+      document.getElementById('mqttData').innerHTML =
+        'Temperatura: ' + temperatureData
+    }
+  </script>
+</html>
